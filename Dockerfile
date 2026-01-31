@@ -25,22 +25,20 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+# Set Playwright browser path to a fixed location
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright-browsers
+
 # Copy package files
 COPY package*.json ./
 
 # Install dependencies
 RUN npm ci --only=production
 
-# Install Playwright browsers
+# Install Playwright browsers to fixed path
 RUN npx playwright install chromium
 
 # Copy source
 COPY src/ ./src/
-
-# Non-root user for security
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
-RUN chown -R appuser:appgroup /app
-USER appuser
 
 EXPOSE 3000
 
