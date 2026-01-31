@@ -4,7 +4,7 @@
  */
 
 import express from 'express';
-import { detectTechStack } from './services/detector.js';
+import { detectTechStack, closeBrowser } from './services/detector.js';
 
 const app = express();
 app.use(express.json());
@@ -107,6 +107,19 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Tech Stack Detection API running on port ${PORT}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, shutting down...');
+  await closeBrowser();
+  server.close(() => process.exit(0));
+});
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT received, shutting down...');
+  await closeBrowser();
+  server.close(() => process.exit(0));
 });

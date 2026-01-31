@@ -10,6 +10,40 @@ import dns from 'dns/promises';
 // Detection signatures organized by category
 import { SIGNATURES } from '../data/signatures.js';
 
+// Browser recycling - prevents memory bloat
+let browserInstance = null;
+let requestCount = 0;
+const MAX_REQUESTS_PER_BROWSER = 50;
+
+/**
+ * Get or create browser instance with recycling
+ */
+async function getBrowser() {
+  if (!browserInstance || requestCount >= MAX_REQUESTS_PER_BROWSER) {
+    if (browserInstance) {
+      console.log(`Recycling browser after ${requestCount} requests`);
+      await browserInstance.close().catch(() => {});
+    }
+    browserInstance = await chromium.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    });
+    requestCount = 0;
+  }
+  requestCount++;
+  return browserInstance;
+}
+
+/**
+ * Cleanup browser on shutdown
+ */
+export async function closeBrowser() {
+  if (browserInstance) {
+    await browserInstance.close().catch(() => {});
+    browserInstance = null;
+  }
+}
+
 /**
  * Main detection function - runs all detection methods
  */
@@ -215,15 +249,12 @@ async function detectFromBrowser(url) {
     jsChecked: false
   };
 
-  let browser = null;
+  let context = null;
 
   try {
-    browser = await chromium.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+    const browser = await getBrowser();
 
-    const context = await browser.newContext({
+    context = await browser.newContext({
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     });
 
@@ -287,11 +318,11 @@ async function detectFromBrowser(url) {
 
     analyzeJSGlobals(jsGlobals, results);
 
-    await browser.close();
+    await context.close();
 
   } catch (err) {
-    if (browser) {
-      await browser.close();
+    if (context) {
+      await context.close().catch(() => {});
     }
     throw err;
   }
