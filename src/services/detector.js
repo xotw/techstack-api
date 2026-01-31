@@ -60,6 +60,7 @@ export async function detectTechStack(domain) {
 
     return {
       esp: mergeDetections(dnsResults.esp, browserResults.esp),
+      crm: mergeDetections(dnsResults.crm, browserResults.crm),
       cms: browserResults.cms,
       ecommerce: browserResults.ecommerce,
       analytics: browserResults.analytics,
@@ -86,6 +87,7 @@ export async function detectTechStack(domain) {
       const dnsResults = await detectFromDNS(domain);
       return {
         esp: dnsResults.esp,
+        crm: dnsResults.crm,
         cms: [],
         ecommerce: [],
         analytics: [],
@@ -118,6 +120,7 @@ export async function detectTechStack(domain) {
 async function detectFromDNS(domain) {
   const results = {
     esp: [],
+    crm: [],
     cdn: [],
     hosting: [],
     raw: {}
@@ -159,6 +162,19 @@ async function detectFromDNS(domain) {
           if (txt.includes(pattern)) {
             if (!results.esp.find(e => e.name === provider)) {
               results.esp.push({ name: provider, confidence: 'high', source: 'spf' });
+            }
+          }
+        }
+      }
+
+      // CRM detection from TXT records
+      if (SIGNATURES.crm.txt) {
+        for (const [provider, patterns] of Object.entries(SIGNATURES.crm.txt)) {
+          for (const pattern of patterns) {
+            if (txt.includes(pattern)) {
+              if (!results.crm.find(e => e.name === provider)) {
+                results.crm.push({ name: provider, confidence: 'high', source: 'txt' });
+              }
             }
           }
         }
@@ -236,6 +252,7 @@ async function detectFromDNS(domain) {
 async function detectFromBrowser(url) {
   const results = {
     esp: [],
+    crm: [],
     cms: [],
     ecommerce: [],
     analytics: [],
@@ -423,6 +440,17 @@ function analyzeHTML($, results) {
         }
       }
     }
+
+    // CRM detection
+    if (SIGNATURES.crm.script) {
+      for (const [provider, patterns] of Object.entries(SIGNATURES.crm.script)) {
+        for (const pattern of patterns) {
+          if (srcLower.includes(pattern)) {
+            addDetection(results.crm, provider, 'high', 'script');
+          }
+        }
+      }
+    }
   }
 
   // Check meta tags for CMS
@@ -475,6 +503,17 @@ function analyzeHTML($, results) {
     for (const pattern of patterns) {
       if (allInline.includes(pattern)) {
         addDetection(results.esp, provider, 'medium', 'inline');
+      }
+    }
+  }
+
+  // CRM inline detection
+  if (SIGNATURES.crm.inline) {
+    for (const [provider, patterns] of Object.entries(SIGNATURES.crm.inline)) {
+      for (const pattern of patterns) {
+        if (allInline.includes(pattern)) {
+          addDetection(results.crm, provider, 'medium', 'inline');
+        }
       }
     }
   }

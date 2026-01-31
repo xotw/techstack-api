@@ -386,6 +386,54 @@ export const SIGNATURES = {
     }
   },
 
+  // ==================== CRM ====================
+  crm: {
+    script: {
+      'Salesforce': ['salesforce.com', 'force.com', 'sfdc.com'],
+      'HubSpot CRM': ['hs-scripts.com', 'hubspot.com', 'hs-analytics'],
+      'Zoho CRM': ['zoho.com/crm', 'zohocrm'],
+      'Pipedrive': ['pipedrive.com'],
+      'Freshsales': ['freshsales.io', 'freshworks.com'],
+      'Microsoft Dynamics': ['dynamics.com', 'crm.dynamics'],
+      'Zendesk Sell': ['getbase.com', 'zendesk.com/sell'],
+      'Copper': ['copper.com', 'prosperworks.com'],
+      'Insightly': ['insightly.com'],
+      'Nimble': ['nimble.com'],
+      'Close': ['close.com', 'close.io'],
+      'Monday CRM': ['monday.com'],
+      'Keap': ['keap.com', 'infusionsoft.com'],
+      'ActiveCampaign CRM': ['activecampaign.com'],
+      'Nutshell': ['nutshell.com'],
+      'Less Annoying CRM': ['lessannoyingcrm.com'],
+      'Capsule': ['capsulecrm.com'],
+      'Streak': ['streak.com'],
+      'Agile CRM': ['agilecrm.com'],
+      'SugarCRM': ['sugarcrm.com'],
+      'Vtiger': ['vtiger.com'],
+      'Bitrix24': ['bitrix24.com']
+    },
+    inline: {
+      'Salesforce': ['salesforce', 'sfdc', 'pardot'],
+      'HubSpot CRM': ['hubspot', '_hsq', 'hs-cta'],
+      'Zoho CRM': ['zohocrm', 'zoho.com/crm'],
+      'Pipedrive': ['pipedrive'],
+      'Freshsales': ['freshsales'],
+      'ActiveCampaign CRM': ['activecampaign']
+    },
+    cname: {
+      'Salesforce': ['salesforce.com', 'force.com', 'pardot.com'],
+      'HubSpot CRM': ['hubspot.com', 'hs-sites.com'],
+      'Marketo': ['marketo.com', 'mktoweb.com', 'mktossl.com'],
+      'Pardot': ['pardot.com', 'go.pardot.com']
+    },
+    txt: {
+      'Salesforce': ['salesforce', 'pardot'],
+      'HubSpot CRM': ['hubspot'],
+      'Marketo': ['marketo'],
+      'Microsoft Dynamics': ['dynamics']
+    }
+  },
+
   // ==================== HOSTING ====================
   hosting: {
     cname: {
