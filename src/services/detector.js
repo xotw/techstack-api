@@ -47,10 +47,42 @@ export async function closeBrowser() {
 
 /**
  * Main detection function - runs all detection methods
+ * @param {string} domain - Domain to detect
+ * @param {object} options - Detection options
+ * @param {boolean} options.fastMode - Skip browser, DNS-only (much faster)
  */
-export async function detectTechStack(domain) {
+export async function detectTechStack(domain, options = {}) {
+  const { fastMode = false } = options;
   const url = `https://${domain}`;
-  let browser = null;
+
+  // Fast mode: DNS-only detection (500ms vs 15s)
+  if (fastMode) {
+    const dnsResults = await detectFromDNS(domain);
+    const result = {
+      esp: dnsResults.esp,
+      crm: dnsResults.crm,
+      cms: [],
+      ecommerce: [],
+      analytics: [],
+      cdn: dnsResults.cdn,
+      marketing: [],
+      chat: [],
+      ab_testing: [],
+      tag_manager: [],
+      payment: [],
+      hosting: dnsResults.hosting,
+      dns_records: dnsResults.raw,
+      detection_methods: {
+        dns: true,
+        html: false,
+        headers: false,
+        javascript: false
+      },
+      mode: 'fast'
+    };
+    const scoring = calculateTechScore(result);
+    return { ...scoring, ...result };
+  }
 
   try {
     // Run DNS checks in parallel with browser

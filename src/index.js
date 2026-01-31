@@ -18,8 +18,9 @@ const PORT = process.env.PORT || 3000;
  * Detect tech stack for a domain
  */
 app.get('/api/techstack', requireApiKey, async (req, res) => {
-  const { domain, refresh } = req.query;
+  const { domain, refresh, mode } = req.query;
   const forceRefresh = refresh === 'true';
+  const fastMode = mode === 'fast';
 
   if (!domain) {
     return res.status(400).json({
@@ -48,7 +49,7 @@ app.get('/api/techstack', requireApiKey, async (req, res) => {
 
   try {
     const startTime = Date.now();
-    const result = await detectTechStack(normalizedDomain);
+    const result = await detectTechStack(normalizedDomain, { fastMode });
     const duration = Date.now() - startTime;
 
     const response = {
@@ -77,7 +78,9 @@ app.get('/api/techstack', requireApiKey, async (req, res) => {
  * Detect tech stack for multiple domains
  */
 app.post('/api/techstack/batch', requireApiKey, async (req, res) => {
-  const { domains } = req.body;
+  const { domains, mode, concurrency = 10 } = req.body;
+  const fastMode = mode === 'fast';
+  const maxConcurrency = Math.min(fastMode ? 50 : 5, concurrency);
 
   if (!domains || !Array.isArray(domains)) {
     return res.status(400).json({
@@ -86,51 +89,70 @@ app.post('/api/techstack/batch', requireApiKey, async (req, res) => {
     });
   }
 
-  if (domains.length > 10) {
+  // Fast mode allows up to 500 domains, regular mode max 20
+  const maxDomains = fastMode ? 500 : 20;
+  if (domains.length > maxDomains) {
     return res.status(400).json({
       error: 'too_many_domains',
-      message: 'Maximum 10 domains per batch request'
+      message: `Maximum ${maxDomains} domains per batch (mode=${mode || 'full'})`
     });
   }
 
+  // Normalize all domains
+  const normalizedDomains = domains.map(d => d
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/\/$/, '')
+  );
+
+  // Process in parallel with concurrency limit
   const results = [];
-  for (const domain of domains) {
-    const normalizedDomain = domain
-      .toLowerCase()
-      .replace(/^https?:\/\//, '')
-      .replace(/^www\./, '')
-      .replace(/\/$/, '');
-
-    // Check cache first
-    const cached = getCache(normalizedDomain);
-    if (cached) {
-      results.push({
-        domain: normalizedDomain,
-        success: true,
-        ...cached
-      });
-      continue;
-    }
-
-    try {
-      const result = await detectTechStack(normalizedDomain);
-      setCache(normalizedDomain, result);
-      results.push({
-        domain: normalizedDomain,
-        success: true,
-        cached: false,
-        ...result
-      });
-    } catch (err) {
-      results.push({
-        domain: normalizedDomain,
-        success: false,
-        error: err.message
-      });
-    }
+  const chunks = [];
+  for (let i = 0; i < normalizedDomains.length; i += maxConcurrency) {
+    chunks.push(normalizedDomains.slice(i, i + maxConcurrency));
   }
 
-  return res.json({ results });
+  for (const chunk of chunks) {
+    const chunkResults = await Promise.all(
+      chunk.map(async (normalizedDomain) => {
+        // Check cache first
+        const cached = getCache(normalizedDomain);
+        if (cached) {
+          return {
+            domain: normalizedDomain,
+            success: true,
+            ...cached
+          };
+        }
+
+        try {
+          const result = await detectTechStack(normalizedDomain, { fastMode });
+          setCache(normalizedDomain, result);
+          return {
+            domain: normalizedDomain,
+            success: true,
+            cached: false,
+            ...result
+          };
+        } catch (err) {
+          return {
+            domain: normalizedDomain,
+            success: false,
+            error: err.message
+          };
+        }
+      })
+    );
+    results.push(...chunkResults);
+  }
+
+  return res.json({
+    mode: fastMode ? 'fast' : 'full',
+    total: results.length,
+    successful: results.filter(r => r.success).length,
+    results
+  });
 });
 
 /**
