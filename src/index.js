@@ -5,6 +5,8 @@
 
 import express from 'express';
 import { detectTechStack, closeBrowser } from './services/detector.js';
+import { getCache, setCache, getCacheStats, clearCache } from './services/cache.js';
+import { requireApiKey } from './middleware/auth.js';
 
 const app = express();
 app.use(express.json());
@@ -15,8 +17,9 @@ const PORT = process.env.PORT || 3001;
  * GET /api/techstack
  * Detect tech stack for a domain
  */
-app.get('/api/techstack', async (req, res) => {
-  const { domain } = req.query;
+app.get('/api/techstack', requireApiKey, async (req, res) => {
+  const { domain, refresh } = req.query;
+  const forceRefresh = refresh === 'true';
 
   if (!domain) {
     return res.status(400).json({
@@ -32,16 +35,33 @@ app.get('/api/techstack', async (req, res) => {
     .replace(/^www\./, '')
     .replace(/\/$/, '');
 
+  // Check cache first (unless refresh=true)
+  if (!forceRefresh) {
+    const cached = getCache(normalizedDomain);
+    if (cached) {
+      return res.json({
+        domain: normalizedDomain,
+        ...cached
+      });
+    }
+  }
+
   try {
     const startTime = Date.now();
     const result = await detectTechStack(normalizedDomain);
     const duration = Date.now() - startTime;
 
-    return res.json({
+    const response = {
       domain: normalizedDomain,
       duration_ms: duration,
+      cached: false,
       ...result
-    });
+    };
+
+    // Store in cache
+    setCache(normalizedDomain, { duration_ms: duration, ...result });
+
+    return res.json(response);
   } catch (err) {
     console.error(`Error detecting tech stack for ${normalizedDomain}:`, err.message);
     return res.status(500).json({
@@ -56,7 +76,7 @@ app.get('/api/techstack', async (req, res) => {
  * POST /api/techstack/batch
  * Detect tech stack for multiple domains
  */
-app.post('/api/techstack/batch', async (req, res) => {
+app.post('/api/techstack/batch', requireApiKey, async (req, res) => {
   const { domains } = req.body;
 
   if (!domains || !Array.isArray(domains)) {
@@ -81,11 +101,24 @@ app.post('/api/techstack/batch', async (req, res) => {
       .replace(/^www\./, '')
       .replace(/\/$/, '');
 
-    try {
-      const result = await detectTechStack(normalizedDomain);
+    // Check cache first
+    const cached = getCache(normalizedDomain);
+    if (cached) {
       results.push({
         domain: normalizedDomain,
         success: true,
+        ...cached
+      });
+      continue;
+    }
+
+    try {
+      const result = await detectTechStack(normalizedDomain);
+      setCache(normalizedDomain, result);
+      results.push({
+        domain: normalizedDomain,
+        success: true,
+        cached: false,
         ...result
       });
     } catch (err) {
@@ -101,14 +134,36 @@ app.post('/api/techstack/batch', async (req, res) => {
 });
 
 /**
+ * POST /api/cache/clear
+ * Clear all cached data
+ */
+app.post('/api/cache/clear', requireApiKey, (req, res) => {
+  const count = clearCache();
+  res.json({
+    success: true,
+    message: `Cleared ${count} cached entries`
+  });
+});
+
+/**
  * GET /health
+ * Health check (no auth required)
  */
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+  const stats = getCacheStats();
+  res.json({
+    status: 'ok',
+    cache: stats
+  });
 });
 
 const server = app.listen(PORT, () => {
   console.log(`Tech Stack Detection API running on port ${PORT}`);
+  if (process.env.API_KEY) {
+    console.log('API key authentication enabled');
+  } else {
+    console.log('WARNING: No API_KEY set - authentication disabled');
+  }
 });
 
 // Graceful shutdown
