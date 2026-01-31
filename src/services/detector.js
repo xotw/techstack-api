@@ -50,9 +50,10 @@ export async function closeBrowser() {
  * @param {string} domain - Domain to detect
  * @param {object} options - Detection options
  * @param {boolean} options.fastMode - Skip browser, DNS-only (much faster)
+ * @param {boolean} options.smartMode - DNS first, full scan if high score
  */
 export async function detectTechStack(domain, options = {}) {
-  const { fastMode = false } = options;
+  const { fastMode = false, smartMode = false } = options;
   const url = `https://${domain}`;
 
   // Fast mode: DNS-only detection (500ms vs 15s)
@@ -82,6 +83,72 @@ export async function detectTechStack(domain, options = {}) {
     };
     const scoring = calculateTechScore(result);
     return { ...scoring, ...result };
+  }
+
+  // Smart mode: DNS first, upgrade to full if score >= 15
+  if (smartMode) {
+    const dnsResults = await detectFromDNS(domain);
+    const dnsOnlyResult = {
+      esp: dnsResults.esp,
+      crm: dnsResults.crm,
+      cms: [],
+      ecommerce: [],
+      analytics: [],
+      cdn: dnsResults.cdn,
+      marketing: [],
+      chat: [],
+      ab_testing: [],
+      tag_manager: [],
+      payment: [],
+      hosting: dnsResults.hosting,
+      dns_records: dnsResults.raw,
+      detection_methods: {
+        dns: true,
+        html: false,
+        headers: false,
+        javascript: false
+      }
+    };
+    const dnsScoring = calculateTechScore(dnsOnlyResult);
+
+    // If score >= 15 (high potential), do full browser scan
+    if (dnsScoring.tech_score >= 15) {
+      try {
+        const browserResults = await detectFromBrowser(url);
+        const fullResult = {
+          esp: mergeDetections(dnsResults.esp, browserResults.esp),
+          crm: mergeDetections(dnsResults.crm, browserResults.crm),
+          cms: browserResults.cms,
+          ecommerce: browserResults.ecommerce,
+          analytics: browserResults.analytics,
+          cdn: mergeDetections(dnsResults.cdn, browserResults.cdn),
+          marketing: browserResults.marketing,
+          chat: browserResults.chat,
+          ab_testing: browserResults.ab_testing,
+          tag_manager: browserResults.tag_manager,
+          payment: browserResults.payment,
+          hosting: dnsResults.hosting,
+          dns_records: dnsResults.raw,
+          detection_methods: {
+            dns: true,
+            html: true,
+            headers: browserResults.headersChecked,
+            javascript: browserResults.jsChecked
+          },
+          mode: 'smart-full',
+          upgraded: true,
+          upgrade_reason: `DNS score ${dnsScoring.tech_score} >= 15`
+        };
+        const fullScoring = calculateTechScore(fullResult);
+        return { ...fullScoring, ...fullResult };
+      } catch (err) {
+        // Browser failed, return DNS results
+        return { ...dnsScoring, ...dnsOnlyResult, mode: 'smart-dns', upgrade_failed: err.message };
+      }
+    }
+
+    // Low score, skip browser
+    return { ...dnsScoring, ...dnsOnlyResult, mode: 'smart-dns', skipped_browser: 'score < 15' };
   }
 
   try {

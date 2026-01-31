@@ -21,6 +21,7 @@ app.get('/api/techstack', requireApiKey, async (req, res) => {
   const { domain, refresh, mode } = req.query;
   const forceRefresh = refresh === 'true';
   const fastMode = mode === 'fast';
+  const smartMode = mode === 'smart';
 
   if (!domain) {
     return res.status(400).json({
@@ -49,7 +50,7 @@ app.get('/api/techstack', requireApiKey, async (req, res) => {
 
   try {
     const startTime = Date.now();
-    const result = await detectTechStack(normalizedDomain, { fastMode });
+    const result = await detectTechStack(normalizedDomain, { fastMode, smartMode });
     const duration = Date.now() - startTime;
 
     const response = {
@@ -80,7 +81,8 @@ app.get('/api/techstack', requireApiKey, async (req, res) => {
 app.post('/api/techstack/batch', requireApiKey, async (req, res) => {
   const { domains, mode, concurrency = 10 } = req.body;
   const fastMode = mode === 'fast';
-  const maxConcurrency = Math.min(fastMode ? 50 : 5, concurrency);
+  const smartMode = mode === 'smart';
+  const maxConcurrency = Math.min(fastMode ? 50 : (smartMode ? 20 : 5), concurrency);
 
   if (!domains || !Array.isArray(domains)) {
     return res.status(400).json({
@@ -89,8 +91,8 @@ app.post('/api/techstack/batch', requireApiKey, async (req, res) => {
     });
   }
 
-  // Fast mode allows up to 500 domains, regular mode max 20
-  const maxDomains = fastMode ? 500 : 20;
+  // Fast mode: 500, smart mode: 200, full mode: 20
+  const maxDomains = fastMode ? 500 : (smartMode ? 200 : 20);
   if (domains.length > maxDomains) {
     return res.status(400).json({
       error: 'too_many_domains',
@@ -127,7 +129,7 @@ app.post('/api/techstack/batch', requireApiKey, async (req, res) => {
         }
 
         try {
-          const result = await detectTechStack(normalizedDomain, { fastMode });
+          const result = await detectTechStack(normalizedDomain, { fastMode, smartMode });
           setCache(normalizedDomain, result);
           return {
             domain: normalizedDomain,
@@ -148,7 +150,7 @@ app.post('/api/techstack/batch', requireApiKey, async (req, res) => {
   }
 
   return res.json({
-    mode: fastMode ? 'fast' : 'full',
+    mode: fastMode ? 'fast' : (smartMode ? 'smart' : 'full'),
     total: results.length,
     successful: results.filter(r => r.success).length,
     results
