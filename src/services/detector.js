@@ -9,6 +9,7 @@ import dns from 'dns/promises';
 
 // Detection signatures organized by category
 import { SIGNATURES } from '../data/signatures.js';
+import { calculateTechScore } from './scoring.js';
 
 // Browser recycling - prevents memory bloat
 let browserInstance = null;
@@ -58,7 +59,7 @@ export async function detectTechStack(domain) {
       detectFromBrowser(url)
     ]);
 
-    return {
+    const result = {
       esp: mergeDetections(dnsResults.esp, browserResults.esp),
       crm: mergeDetections(dnsResults.crm, browserResults.crm),
       cms: browserResults.cms,
@@ -79,13 +80,20 @@ export async function detectTechStack(domain) {
         javascript: browserResults.jsChecked
       }
     };
+
+    // Calculate tech stack score
+    const scoring = calculateTechScore(result);
+    return {
+      ...scoring,
+      ...result
+    };
   } catch (err) {
     // If browser fails, try DNS-only detection
     console.error(`Browser detection failed for ${domain}: ${err.message}`);
 
     try {
       const dnsResults = await detectFromDNS(domain);
-      return {
+      const partialResult = {
         esp: dnsResults.esp,
         crm: dnsResults.crm,
         cms: [],
@@ -107,6 +115,13 @@ export async function detectTechStack(domain) {
         },
         partial: true,
         error: `Browser detection failed: ${err.message}`
+      };
+
+      // Calculate tech stack score
+      const scoring = calculateTechScore(partialResult);
+      return {
+        ...scoring,
+        ...partialResult
       };
     } catch (dnsErr) {
       throw new Error(`All detection methods failed: ${err.message}`);
