@@ -86,10 +86,12 @@ export function calculateTechScore(detectionResult) {
   );
 
   if (marketingEsps.length === 0) {
+    // No marketing ESP - show corporate email as fallback
+    const corporateEmail = esps.length > 0 ? esps[0].name : null;
     return {
       tech_score: 10,
-      tech_stack_primary: null,
-      tech_category: 'No tech found'
+      tech_stack_primary: corporateEmail,
+      tech_category: corporateEmail ? 'Corporate Email Only' : 'No tech found'
     };
   }
 
