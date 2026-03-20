@@ -1,7 +1,7 @@
 {
   "name": "techstack-api",
   "version": "1.0.0",
-  "description": "Tech stack detection API - better than BuiltWith",
+  "description": "Tech stack detection API - multi-method website technology detection",
   "main": "src/index.js",
   "type": "module",
   "scripts": {
@@ -10,13 +10,11 @@
     "test": "node test/test.js"
   },
   "keywords": ["techstack", "detection", "esp", "analytics"],
-  "author": "",
+  "author": "Gab @ Bulldozer",
   "license": "ISC",
   "dependencies": {
     "cheerio": "^1.2.0",
-    "dns-packet": "^5.6.1",
     "express": "^5.2.1",
-    "node-fetch": "^3.3.2",
     "playwright": "^1.58.1"
   }
 }

@@ -4,7 +4,7 @@
  */
 
 const SCORING_RULES = {
-  // 20 pts - SMB Email & Marketing Automation (direct competitors, highest win rate)
+  // 20 pts - SMB Email & Marketing Automation (most replaceable)
   20: {
     category: 'SMB Email & Marketing Automation',
     vendors: [
@@ -22,7 +22,7 @@ const SCORING_RULES = {
     ]
   },
 
-  // 10 pts - Legacy platforms (Brevo can win, decent chance)
+  // 10 pts - Legacy / mid-market platforms
   10: {
     category: 'Legacy Platforms',
     vendors: [
@@ -30,7 +30,7 @@ const SCORING_RULES = {
     ]
   },
 
-  // 5 pts - CDP (sophisticated stack, harder sell)
+  // 5 pts - CDP / sophisticated stack
   5: {
     category: 'CDP / Sophisticated Stack',
     vendors: [
@@ -39,7 +39,7 @@ const SCORING_RULES = {
   },
 
   // 5 pts - Leading CRM Suite
-  // Note: HubSpot detected = harder sell
+  // HubSpot as primary CRM suite
   5.1: {
     category: 'Leading CRM Suite',
     vendors: [

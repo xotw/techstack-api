@@ -1,13 +1,13 @@
 /**
  * Test script for tech stack detection
- * Tests against domains that returned "Unknown" for ESP in Brevo
+ * Tests detection accuracy against known domains
  */
 
 import { detectTechStack } from '../src/services/detector.js';
 import fs from 'fs';
 import path from 'path';
 
-// Test domains from the user's CSV (these all returned "Unknown" for ESP in Brevo)
+// Test domains - major brands with known tech stacks
 const TEST_DOMAINS = [
   'aloyoga.com',
   'converse.com',
@@ -23,7 +23,7 @@ const TEST_DOMAINS = [
 
 async function runTests() {
   console.log('🔍 Tech Stack Detection API - Test Suite\n');
-  console.log('Testing domains that returned "Unknown" for ESP in Brevo...\n');
+  console.log('Testing detection accuracy against known domains...\n');
   console.log('='.repeat(70));
 
   const results = [];

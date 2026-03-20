@@ -1,11 +1,12 @@
 /**
  * Tech Stack Detection API
- * Better than BuiltWith - uses multiple detection methods
+ * Multi-method website technology detection
  */
 
 import express from 'express';
 import { detectTechStack, closeBrowser } from './services/detector.js';
 import { getCache, setCache, getCacheStats, clearCache } from './services/cache.js';
+import { flattenForClay } from './services/flatten.js';
 import { requireApiKey } from './middleware/auth.js';
 
 const app = express();
@@ -18,7 +19,7 @@ const PORT = process.env.PORT || 3000;
  * Detect tech stack for a domain
  */
 app.get('/api/techstack', requireApiKey, async (req, res) => {
-  const { domain, refresh, mode } = req.query;
+  const { domain, refresh, mode, format } = req.query;
   const forceRefresh = refresh === 'true';
   const fastMode = mode === 'fast';
   const smartMode = mode === 'smart';
@@ -41,10 +42,11 @@ app.get('/api/techstack', requireApiKey, async (req, res) => {
   if (!forceRefresh) {
     const cached = getCache(normalizedDomain);
     if (cached) {
-      return res.json({
-        domain: normalizedDomain,
-        ...cached
-      });
+      const response = { domain: normalizedDomain, ...cached };
+      if (format === 'clay' || format === 'flat') {
+        return res.json(flattenForClay(response));
+      }
+      return res.json(response);
     }
   }
 
@@ -62,6 +64,11 @@ app.get('/api/techstack', requireApiKey, async (req, res) => {
 
     // Store in cache
     setCache(normalizedDomain, { duration_ms: duration, ...result });
+
+    // Flat format for Clay / CSV integrations
+    if (format === 'clay' || format === 'flat') {
+      return res.json(flattenForClay(response));
+    }
 
     return res.json(response);
   } catch (err) {
